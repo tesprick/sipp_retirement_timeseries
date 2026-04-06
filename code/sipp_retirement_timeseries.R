@@ -13,10 +13,9 @@ library(ggplot2)
 # Initialize results table
 results <- data.frame(
   year = integer(),
-  access_full_share = numeric(),
-  access_part_share = numeric(),
-  participate_full_share = numeric(),
-  participate_part_share = numeric()
+  access_share = numeric(),
+  access_or_eventual_share = numeric(),
+  participate_share = numeric()
 )
 
 years <- 2021:2024
@@ -77,16 +76,40 @@ for (yr in years) {
         TRUE ~ "Missing"
       ),
       TOTYEARINC = TPTOTINC*12,
-      ANY_RETIREMENT_ACCESS = case_when( # would this reclassify someone w/ e.g. a 401k as "No" if they EMJOB_IRA was 2?
-        EMJOB_401 == 1 ~ "Yes", # Any 401k, 403b, 503b, or Thrift Savings Plan account(s) provided through main employer or business during the reference period.
-        EMJOB_IRA == 1 ~ "Yes", # Any IRA or Keogh account(s) provided through main employer or business during the reference period.
-        EMJOB_PEN == 1 ~ "Yes", # Any defined-benefit or cash balance plan(s) provided through main employer or business during the reference period.
-        EMJOB_401 == 2 ~ "No",
-        EMJOB_IRA == 2 ~ "No",
-        EMJOB_PEN == 2 ~ "No",
-        EOWN_THR401  == 2 ~ "No",
-        EOWN_IRAKEO  == 2 ~ "No",
-        EOWN_PENSION == 2 ~ "No",
+      ANY_RETIREMENT_ACCESS = case_when(
+        # Check for access across all three types
+        # 401(k)/Thrift access
+        (EOWN_THR401 == 1 & EMJOB_401 == 1) |
+        (EOWN_THR401 == 1 & EMJOB_401 == 2 & EPJOB_401 == 1) |
+        (EOWN_THR401 == 1 & EMJOB_401 == 2 & EPJOB_401 == 2 & EPENSNYN == 1 & EINCPENS == 1) |
+        (EOWN_THR401 == 2 & EPENSNYN == 1 & EINCPENS == 1) |
+        # IRA/Keogh access
+        (EOWN_IRAKEO == 1 & EMJOB_IRA == 1) |
+        (EOWN_IRAKEO == 1 & EMJOB_IRA == 2 & EPJOB_IRA == 1) |
+        (EOWN_IRAKEO == 1 & EMJOB_IRA == 2 & EPJOB_IRA == 2 & EPENSNYN == 1 & EINCPENS == 1) |
+        (EOWN_IRAKEO == 2 & EPENSNYN == 1 & EINCPENS == 1) |
+        # Pension access
+        (EOWN_PENSION == 1 & EMJOB_PEN == 1) |
+        (EOWN_PENSION == 1 & EMJOB_PEN == 2 & EPJOB_PEN == 1) |
+        (EOWN_PENSION == 1 & EMJOB_PEN == 2 & EPJOB_PEN == 2 & EPENSNYN == 1 & EINCPENS == 1) |
+        (EOWN_PENSION == 2 & EPENSNYN == 1 & EINCPENS == 1) ~ "access",
+        
+        # Check for "eventual access" (only if no "access" found above)
+        (EOWN_THR401 == 1 & EMJOB_401 == 2 & EPJOB_401 == 2 & EPENSNYN == 1 & EINCPENS == 2) |
+        (EOWN_THR401 == 2 & EPENSNYN == 1 & EINCPENS == 2) |
+        (EOWN_IRAKEO == 1 & EMJOB_IRA == 2 & EPJOB_IRA == 2 & EPENSNYN == 1 & EINCPENS == 2) |
+        (EOWN_IRAKEO == 2 & EPENSNYN == 1 & EINCPENS == 2) |
+        (EOWN_PENSION == 1 & EMJOB_PEN == 2 & EPJOB_PEN == 2 & EPENSNYN == 1 & EINCPENS == 2) |
+        (EOWN_PENSION == 2 & EPENSNYN == 1 & EINCPENS == 2) ~ "eventual access",
+        
+        # Check for "no access" (all three types must be "no access")
+        (EOWN_THR401 == 1 & EMJOB_401 == 2 & EPJOB_401 == 2 & EPENSNYN == 2) |
+        (EOWN_THR401 == 2 & EPENSNYN == 2) &
+        (EOWN_IRAKEO == 1 & EMJOB_IRA == 2 & EPJOB_IRA == 2 & EPENSNYN == 2) |
+        (EOWN_IRAKEO == 2 & EPENSNYN == 2) &
+        (EOWN_PENSION == 1 & EMJOB_PEN == 2 & EPJOB_PEN == 2 & EPENSNYN == 2) |
+        (EOWN_PENSION == 2 & EPENSNYN == 2) ~ "no access",
+        
         TRUE ~ "Missing"
       ),
       PARTICIPATING = case_when(
@@ -102,23 +125,23 @@ for (yr in years) {
         TRUE ~ "Missing"
       ),
       # This isn't necessarily matching--just employer contributions
-      MATCHING = case_when(
-        EECNTYN_401 == 1 ~ "Yes", # Main employer or business contributed to respondent's 401k, 403b, 503b, or Thrift Savings Plan account(s) during the reference period.
-        EECNTYN_IRA == 1  ~ "Yes", # Main employer or business contributed to respondent's IRA or Keogh account(s) during the reference period.
-        EECNTYN_401 == 2 ~ "No",
-        EECNTYN_IRA == 2 ~ "No",
-        EOWN_THR401  == 2 ~ "No",
-        EOWN_IRAKEO  == 2 ~ "No",
-        EOWN_PENSION == 2 ~ "No",
-        # is.na(EECNTYN_401) ~ "No",
-        TRUE ~ "Missing"
-      ),
-      METRO_STATUS = case_when(
-        TMETRO_INTV == 1 ~ "Metropolitan area",
-        TMETRO_INTV == 2 ~ "Nonmetropolitan area",
-        TMETRO_INTV == 3 ~ "Not identified",
-        TRUE ~ NA
-      ),
+      # MATCHING = case_when(
+      #   EECNTYN_401 == 1 ~ "Yes", # Main employer or business contributed to respondent's 401k, 403b, 503b, or Thrift Savings Plan account(s) during the reference period.
+      #   EECNTYN_IRA == 1  ~ "Yes", # Main employer or business contributed to respondent's IRA or Keogh account(s) during the reference period.
+      #   EECNTYN_401 == 2 ~ "No",
+      #   EECNTYN_IRA == 2 ~ "No",
+      #   EOWN_THR401  == 2 ~ "No",
+      #   EOWN_IRAKEO  == 2 ~ "No",
+      #   EOWN_PENSION == 2 ~ "No",
+      #   # is.na(EECNTYN_401) ~ "No",
+      #   TRUE ~ "Missing"
+      # ),
+      # METRO_STATUS = case_when(
+      #   TMETRO_INTV == 1 ~ "Metropolitan area",
+      #   TMETRO_INTV == 2 ~ "Nonmetropolitan area",
+      #   TMETRO_INTV == 3 ~ "Not identified",
+      #   TRUE ~ NA
+      # ),
       FULL_PART_TIME = case_when( # Define full time workers as those working at least 35 hours
         TJB1_JOBHRS1 >=35 ~ "full time",
         TJB1_JOBHRS1 >0 & TJB1_JOBHRS1< 35 ~ "part time",
@@ -132,7 +155,6 @@ for (yr in years) {
       ) # 18-65 ages
     )
   
-  
   # Filter to analysis population
   sipp <- sipp %>%
     filter(EMPLOYMENT_TYPE == "Employer") %>%
@@ -142,27 +164,33 @@ for (yr in years) {
     filter(TPTOTINC > 0) %>%
     filter(ANY_RETIREMENT_ACCESS != "Missing") %>%
     filter(PARTICIPATING != "Missing") %>%
-    filter(MATCHING != "Missing") %>%
+    #filter(MATCHING != "Missing") %>%
     filter(in_age_range == "yes")
   
-  # --- Helper to compute "No" share ---
-  get_no_share <- function(df, var, work_type) {
+  # --- Helper to compute retirement access/participation shares ---
+  get_retirement_shares <- function(df) {
     df %>%
-      filter(FULL_PART_TIME == work_type) %>%
-      group_by(.data[[var]]) %>%
-      summarise(count = sum(WPFINWGT), .groups = "drop") %>%
-      mutate(Share = count / sum(count) * 100) %>%
-      filter(.data[[var]] == "No") %>%
-      pull(Share)
+      summarise(
+        # Access (excludes "eventual access" and "no access")
+        access_share = sum(WPFINWGT[ANY_RETIREMENT_ACCESS == "access"], na.rm = TRUE) / 
+          sum(WPFINWGT, na.rm = TRUE) * 100,
+        
+        # Access OR Eventual Access (excludes only "no access")
+        access_or_eventual_share = sum(WPFINWGT[ANY_RETIREMENT_ACCESS %in% c("access", "eventual access")], na.rm = TRUE) / 
+          sum(WPFINWGT, na.rm = TRUE) * 100,
+        
+        # Participation
+        participate_share = sum(WPFINWGT[PARTICIPATING == "Yes"], na.rm = TRUE) / 
+          sum(WPFINWGT, na.rm = TRUE) * 100
+      )
   }
   
-  # Compute the four shares
+  # Compute the three shares (no distinction between full- and part-time)
   row <- data.frame(
-    year                    = yr,
-    access_full_share       = get_no_share(sipp, "ANY_RETIREMENT_ACCESS", "full time"),
-    access_part_share       = get_no_share(sipp, "ANY_RETIREMENT_ACCESS", "part time"),
-    participate_full_share  = get_no_share(sipp, "PARTICIPATING", "full time"),
-    participate_part_share  = get_no_share(sipp, "PARTICIPATING", "part time")
+    year                     = yr,
+    access_share             = get_retirement_shares(sipp)$access_share,
+    access_or_eventual_share = get_retirement_shares(sipp)$access_or_eventual_share,
+    participate_share        = get_retirement_shares(sipp)$participate_share
   )
   
   results <- bind_rows(results, row)
@@ -176,10 +204,9 @@ for (yr in years) {
 
 print(results)
 
-results_pos <- results %>%
-  mutate(across(where(is.numeric) & !matches("year"), ~100-.x))
-print(results_pos)
-
 # Export to CSV
 setwd('~/rprojects/sipp_retirement_timeseries/output/')
-write.csv(results_pos, "sipp_2021-24.csv", row.names = FALSE)
+write.csv(results, "sipp_2021-24.csv", row.names = FALSE)
+
+
+
