@@ -206,7 +206,6 @@ print(results)
 
 # Export to CSV
 setwd('~/rprojects/sipp_retirement_timeseries/output/')
-write.csv(results, "sipp_2021-24.csv", row.names = FALSE)
-
+write.csv(results, "20260407_sipp_2021-24.csv", row.names = FALSE)
 
 
