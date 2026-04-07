@@ -2,3 +2,22 @@
 .Rhistory
 .RData
 .Ruserdata
+
+# Data files
+data/*.csv
+data/*.sas7bdat
+
+# Output files
+output/*.png
+output/*.csv
+output/*.txt
+output/*.pdf
+output/*.html
+
+# System files
+.DS_Store
+Thumbs.db
+*.tmp
+
+# R Environment Variables
+.Renviron
