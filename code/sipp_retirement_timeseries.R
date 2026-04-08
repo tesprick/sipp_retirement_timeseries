@@ -209,3 +209,4 @@ setwd('~/rprojects/sipp_retirement_timeseries/output/')
 write.csv(results, "20260407_sipp_2021-24.csv", row.names = FALSE)
 
 
+print(table(sipp_2001_w7$RMHRSWK))
