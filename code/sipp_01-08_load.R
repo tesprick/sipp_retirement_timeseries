@@ -1,7 +1,6 @@
 library(tidyverse)
 library(readr)
 
-setwd("/Users/treyemersonsprick/rprojects/sipp_retirement_timeseries")
 
 # Quick check for regex
 read_lines("data/p01puw1.sas", n_max = 20)
