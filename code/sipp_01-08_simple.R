@@ -40,41 +40,16 @@ process_sipp_wave <- function(sipp_data) {
     mutate(
       # === ACCESS VARIABLE ===
       ANY_RETIREMENT_ACCESS = case_when(
-        EINCPENS == 1 ~ "access",
-        
-        EINCPENS == 2 & (ENOINA04 == 1 | ENOINA06 == 1 | ENOINA07 == 1 | 
-                           ENOINA08 == 1 | ENOINA10 == 1 | ENOINA11 == 1 | 
-                           ENOINA12 == 1 | ENOINA13 == 1) ~ "access",
-        
-        EINCPENS == 2 & (ENOINA02 == 1 | ENOINA03 == 1 | ENOINA05 == 1 | 
-                           ENOINA09 == 1) ~ "eventual access",
-        
-        EINCPENS == 2 & (ENOINA01 == 1 | ENOINA14 == 1) ~ "no access",
-        
-        E3PARTIC == 1 ~ "access",
-        
-        E3PARTIC == 2 & (ENOINB04 == 1 | ENOINB06 == 1 | ENOINB07 == 1 | 
-                           ENOINB08 == 1 | ENOINB10 == 1 | ENOINB11 == 1 | 
-                           ENOINB12 == 1 | ENOINB13 == 1) ~ "access",
-        
-        E3PARTIC == 2 & (ENOINB02 == 1 | ENOINB03 == 1 | ENOINB05 == 1 | 
-                           ENOINB09 == 1) ~ "eventual access",
-        
-        E3PARTIC == 2 & (ENOINB01 == 1 | ENOINB14 == 1) ~ "no access",
-        
+        EPENSNYN == 1 ~ "access",
+        E3TAXDEF == 1 ~ "access",
         EPENSNYN == 2 & E3TAXDEF == 2 ~ "no access",
-        
         TRUE ~ NA_character_
       ),
       
       # === PARTICIPATION VARIABLES ===
       participate = case_when(
-        EINCPENS == 1 | E3PARTIC == 1 ~ "Yes",
-        TRUE ~ "No"
-      ),
-      
-      participate_active = case_when(
-        E1PENCTR == 1 | E2PENCTR == 1 ~ "Yes",
+        EINCPENS == 1 ~ "Yes",   # included in DB/general plan
+        E3PARTIC == 1 ~ "Yes",   # participating in tax-deferred plan
         TRUE ~ "No"
       )
     )
@@ -97,17 +72,11 @@ summarize_wave <- function(sipp_data, year, wave) {
   cat("Percentages:\n")
   print(round(prop.table(access_table) * 100, 1))
   
-  cat("\nParticipation (loose):\n")
+  cat("\nParticipation:\n")
   part_table <- table(sipp_data$participate, useNA = "ifany")
   print(part_table)
   cat("Percentages:\n")
   print(round(prop.table(part_table) * 100, 1))
-  
-  cat("\nParticipation (active):\n")
-  active_table <- table(sipp_data$participate_active, useNA = "ifany")
-  print(active_table)
-  cat("Percentages:\n")
-  print(round(prop.table(active_table) * 100, 1))
 }
 
 # Summarize all waves
@@ -127,21 +96,15 @@ calculate_weighted_shares <- function(sipp_data) {
       year = year,
       n = n(),
       
-      # Access shares (weighted)
+      # Access share (weighted)
       access_share = sum(WPFINWGT[ANY_RETIREMENT_ACCESS == "access"], na.rm = TRUE) / 
-        sum(WPFINWGT, na.rm = TRUE) * 100,
-      
-      access_or_eventual_share = sum(WPFINWGT[ANY_RETIREMENT_ACCESS %in% c("access", "eventual access")], na.rm = TRUE) / 
         sum(WPFINWGT, na.rm = TRUE) * 100,
       
       no_access_share = sum(WPFINWGT[ANY_RETIREMENT_ACCESS == "no access"], na.rm = TRUE) / 
         sum(WPFINWGT, na.rm = TRUE) * 100,
       
-      # Participation shares (weighted)
-      participate_loose_share = sum(WPFINWGT[participate == "Yes"], na.rm = TRUE) / 
-        sum(WPFINWGT, na.rm = TRUE) * 100,
-      
-      participate_active_share = sum(WPFINWGT[participate_active == "Yes"], na.rm = TRUE) / 
+      # Participation share (weighted)
+      participate_share = sum(WPFINWGT[participate == "Yes"], na.rm = TRUE) / 
         sum(WPFINWGT, na.rm = TRUE) * 100
     )
 }
