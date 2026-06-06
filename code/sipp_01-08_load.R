@@ -1,9 +1,10 @@
 library(tidyverse)
 library(readr)
 
+rm(list = ls())
 
 # Quick check for regex
-read_lines("data/p01puw1.sas", n_max = 20)
+# read_lines("data/p01puw1.sas", n_max = 20)
 
 # Function to parse SAS input statements and extract column specifications
 parse_sas_input <- function(sas_file) {
