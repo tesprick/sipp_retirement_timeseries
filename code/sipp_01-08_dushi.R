@@ -130,4 +130,6 @@ historical_results <- bind_rows(
 print(historical_results)
 
 # Save to CSV
+setwd("~/rprojects/sipp_retirement_timeseries/output")
 write_csv(historical_results, paste0("output/", Sys.Date(), "_sipp_historical.csv"))
+setwd("~/rprojects/sipp_retirement_timeseries")
